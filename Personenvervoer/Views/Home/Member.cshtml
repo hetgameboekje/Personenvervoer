@@ -1,8 +1,336 @@
-﻿@{
-    ViewData["Title"] = "member Page";
+@{
+    ViewData["Title"] = "Deelnemers";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Toevoegen Deelnemers</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Deelnemers</h1>
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg me-1" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
+        </svg>
+        Deelnemer toevoegen
+    </button>
 </div>
+
+<div id="alertContainer"></div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Naam</th>
+                <th>E-mail</th>
+                <th>Telefoon</th>
+                <th>Adres</th>
+                <th class="text-end">Acties</th>
+            </tr>
+        </thead>
+        <tbody id="membersTableBody">
+            <tr id="loadingRow">
+                <td colspan="5" class="text-center text-muted py-4">Laden&hellip;</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-2">
+    <small class="text-muted" id="pageInfo"></small>
+    <div>
+        <button class="btn btn-outline-secondary btn-sm me-1" id="btnPrev" onclick="loadPage(currentPage - 1)" disabled>
+            &laquo; Vorige
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnNext" onclick="loadPage(currentPage + 1)" disabled>
+            Volgende &raquo;
+        </button>
+    </div>
+</div>
+
+<!-- Create / Edit Modal -->
+<div class="modal fade" id="memberModal" tabindex="-1" aria-labelledby="memberModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="memberModalLabel">Deelnemer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+            </div>
+            <div class="modal-body">
+                <form id="memberForm" novalidate>
+                    <input type="hidden" id="memberId" />
+                    <div class="mb-3">
+                        <label for="memberName" class="form-label">Naam <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="memberName" required placeholder="Volledige naam" />
+                        <div class="invalid-feedback">Naam is verplicht.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="memberEmail" class="form-label">E-mail</label>
+                        <input type="email" class="form-control" id="memberEmail" placeholder="naam@voorbeeld.nl" />
+                        <div class="invalid-feedback">Voer een geldig e-mailadres in.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="memberPhone" class="form-label">Telefoon</label>
+                        <input type="tel" class="form-control" id="memberPhone" placeholder="+31 6 12345678" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="memberAddress" class="form-label">Adres</label>
+                        <input type="text" class="form-control" id="memberAddress" placeholder="Straat 1, Stad" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-primary" id="btnSaveMember" onclick="saveMember()">Opslaan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">Deelnemer verwijderen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+            </div>
+            <div class="modal-body">
+                Weet je zeker dat je <strong id="deleteMemberName"></strong> wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmDelete" onclick="confirmDelete()">Verwijderen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const PAGE_SIZE = 100;
+    const ALERT_DISMISS_MS = 5000;
+    let currentPage = 0;
+    let totalOnPage = 0;
+    let deleteId = null;
+
+    const memberModal = new bootstrap.Modal(document.getElementById('memberModal'));
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    // ── Load members ──────────────────────────────────────────────────────────
+
+    async function loadPage(page) {
+        if (page < 0) return;
+        currentPage = page;
+
+        const tbody = document.getElementById('membersTableBody');
+        tbody.innerHTML = '<tr id="loadingRow"><td colspan="5" class="text-center text-muted py-4">Laden&hellip;</td></tr>';
+        document.getElementById('btnPrev').disabled = true;
+        document.getElementById('btnNext').disabled = true;
+
+        try {
+            const res = await fetch(`/api/members?page=${page}`);
+            if (!res.ok) throw new Error(`Fout bij ophalen gegevens (HTTP ${res.status})`);
+            const members = await res.json();
+            totalOnPage = members.length;
+            renderTable(members);
+            updatePagination();
+        } catch (err) {
+            showAlert('danger', err.message);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Kon gegevens niet laden.</td></tr>';
+        }
+    }
+
+    function renderTable(members) {
+        const tbody = document.getElementById('membersTableBody');
+        tbody.innerHTML = '';
+
+        if (members.length === 0) {
+            const tr = tbody.insertRow();
+            tr.insertCell().setAttribute('colspan', '5');
+            tr.cells[0].className = 'text-center text-muted py-4';
+            tr.cells[0].textContent = 'Geen deelnemers gevonden.';
+            return;
+        }
+
+        for (const m of members) {
+            const tr = tbody.insertRow();
+
+            // Name
+            tr.insertCell().textContent = m.name;
+
+            // Email
+            const emailCell = tr.insertCell();
+            if (m.email) {
+                const a = document.createElement('a');
+                a.href = `mailto:${m.email}`;
+                a.textContent = m.email;
+                emailCell.appendChild(a);
+            } else {
+                emailCell.innerHTML = '<span class="text-muted">\u2014</span>';
+            }
+
+            // Phone
+            const phoneCell = tr.insertCell();
+            phoneCell.textContent = m.phone ?? '';
+            if (!m.phone) phoneCell.innerHTML = '<span class="text-muted">\u2014</span>';
+
+            // Address
+            const addressCell = tr.insertCell();
+            addressCell.textContent = m.address ?? '';
+            if (!m.address) addressCell.innerHTML = '<span class="text-muted">\u2014</span>';
+
+            // Actions
+            const actionsCell = tr.insertCell();
+            actionsCell.className = 'text-end text-nowrap';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-sm btn-outline-primary me-1';
+            editBtn.textContent = 'Bewerken';
+            editBtn.dataset.memberId = m.id;
+            editBtn.dataset.memberName = m.name;
+            editBtn.dataset.memberEmail = m.email ?? '';
+            editBtn.dataset.memberPhone = m.phone ?? '';
+            editBtn.dataset.memberAddress = m.address ?? '';
+            editBtn.addEventListener('click', handleEditClick);
+            actionsCell.appendChild(editBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn-sm btn-outline-danger';
+            delBtn.textContent = 'Verwijderen';
+            delBtn.dataset.memberId = m.id;
+            delBtn.dataset.memberName = m.name;
+            delBtn.addEventListener('click', handleDeleteClick);
+            actionsCell.appendChild(delBtn);
+        }
+    }
+
+    function updatePagination() {
+        document.getElementById('btnPrev').disabled = currentPage === 0;
+        document.getElementById('btnNext').disabled = totalOnPage < PAGE_SIZE;
+        const start = currentPage * PAGE_SIZE + 1;
+        const end = currentPage * PAGE_SIZE + totalOnPage;
+        document.getElementById('pageInfo').textContent =
+            totalOnPage > 0 ? `${start}–${end} weergegeven` : '';
+    }
+
+    // ── Create ────────────────────────────────────────────────────────────────
+
+    function openCreateModal() {
+        document.getElementById('memberModalLabel').textContent = 'Deelnemer toevoegen';
+        document.getElementById('memberForm').classList.remove('was-validated');
+        document.getElementById('memberId').value = '';
+        document.getElementById('memberName').value = '';
+        document.getElementById('memberEmail').value = '';
+        document.getElementById('memberPhone').value = '';
+        document.getElementById('memberAddress').value = '';
+        memberModal.show();
+    }
+
+    // ── Edit ──────────────────────────────────────────────────────────────────
+
+    function handleEditClick(e) {
+        const btn = e.currentTarget;
+        document.getElementById('memberModalLabel').textContent = 'Deelnemer bewerken';
+        document.getElementById('memberForm').classList.remove('was-validated');
+        document.getElementById('memberId').value = btn.dataset.memberId;
+        document.getElementById('memberName').value = btn.dataset.memberName;
+        document.getElementById('memberEmail').value = btn.dataset.memberEmail;
+        document.getElementById('memberPhone').value = btn.dataset.memberPhone;
+        document.getElementById('memberAddress').value = btn.dataset.memberAddress;
+        memberModal.show();
+    }
+
+    // ── Save (create or update) ───────────────────────────────────────────────
+
+    async function saveMember() {
+        const form = document.getElementById('memberForm');
+        form.classList.add('was-validated');
+        if (!form.checkValidity()) return;
+
+        const id = document.getElementById('memberId').value;
+        const payload = {
+            name: document.getElementById('memberName').value.trim(),
+            email: document.getElementById('memberEmail').value.trim() || null,
+            phone: document.getElementById('memberPhone').value.trim() || null,
+            address: document.getElementById('memberAddress').value.trim() || null
+        };
+
+        const btn = document.getElementById('btnSaveMember');
+        btn.disabled = true;
+        btn.textContent = 'Bezig…';
+
+        try {
+            const url = id ? `/api/members/${id}` : '/api/members';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(`Fout bij opslaan (HTTP ${res.status})`);
+            memberModal.hide();
+            showAlert('success', id ? 'Deelnemer bijgewerkt.' : 'Deelnemer aangemaakt.');
+            await loadPage(currentPage);
+        } catch (err) {
+            showAlert('danger', err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Opslaan';
+        }
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    function handleDeleteClick(e) {
+        const btn = e.currentTarget;
+        deleteId = btn.dataset.memberId;
+        document.getElementById('deleteMemberName').textContent = btn.dataset.memberName;
+        deleteModal.show();
+    }
+
+    async function confirmDelete() {
+        if (!deleteId) return;
+        const btn = document.getElementById('btnConfirmDelete');
+        btn.disabled = true;
+        btn.textContent = 'Bezig…';
+
+        try {
+            const res = await fetch(`/api/members/${deleteId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(`Fout bij verwijderen (HTTP ${res.status})`);
+            deleteModal.hide();
+            showAlert('success', 'Deelnemer verwijderd.');
+            // Navigate to previous page if this page is now empty
+            const targetPage = (totalOnPage === 1 && currentPage > 0) ? currentPage - 1 : currentPage;
+            await loadPage(targetPage);
+        } catch (err) {
+            showAlert('danger', err.message);
+        } finally {
+            deleteId = null;
+            btn.disabled = false;
+            btn.textContent = 'Verwijderen';
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    function showAlert(type, message) {
+        const container = document.getElementById('alertContainer');
+        const id = 'alert-' + Date.now();
+        const wrapper = document.createElement('div');
+        wrapper.id = id;
+        wrapper.className = `alert alert-${type} alert-dismissible fade show`;
+        wrapper.setAttribute('role', 'alert');
+        wrapper.textContent = message;
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close';
+        closeBtn.setAttribute('data-bs-dismiss', 'alert');
+        closeBtn.setAttribute('aria-label', 'Sluiten');
+        wrapper.appendChild(closeBtn);
+        container.appendChild(wrapper);
+        setTimeout(() => document.getElementById(id)?.remove(), ALERT_DISMISS_MS);
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    loadPage(0);
+</script>
+}

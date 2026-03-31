@@ -59,7 +59,9 @@ public class RideService
         cmd.Parameters.AddWithValue("location_time", (object?)ride.LocationTime ?? DBNull.Value);
         cmd.Parameters.AddWithValue("ride_time", (object?)ride.RideTime ?? DBNull.Value);
 
-        var id = (Guid)(await cmd.ExecuteScalarAsync())!;
+        var scalar = await cmd.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("INSERT INTO rides did not return a generated ID.");
+        var id = (Guid)scalar;
         return (await GetByIdAsync(id))!;
     }
 

@@ -15,11 +15,11 @@ public class DatabaseController : ControllerBase
     }
 
     [HttpGet("health")]
-    public IActionResult Health()
+    public async Task<IActionResult> Health()
     {
         try
         {
-            using var conn = _databaseService.OpenConnection();
+            await using var conn = await _databaseService.OpenConnectionAsync();
             return Ok(new { status = "ok", database = "connected" });
         }
         catch (Exception ex)

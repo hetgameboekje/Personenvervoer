@@ -11,6 +11,7 @@ public class GoogleApiResult
 
 public class GoogleApiService
 {
+    private const double AverageUrbanSpeedKmh = 50.0;
     private readonly ILogger<GoogleApiService> _logger;
 
     public GoogleApiService(ILogger<GoogleApiService> logger)
@@ -38,8 +39,8 @@ public class GoogleApiService
             (double)originLat, (double)originLng,
             (double)destLat, (double)destLng);
 
-        // Estimate driving time: average speed 50 km/h in urban areas
-        int durationMinutes = (int)Math.Ceiling(distanceKm / 50.0 * 60.0);
+        // Estimate driving time based on average urban speed
+        int durationMinutes = (int)Math.Ceiling(distanceKm / AverageUrbanSpeedKmh * 60.0);
 
         _logger.LogInformation(
             "Fake Google API: distance={Distance}km, duration={Duration}min from ({OriginLat},{OriginLng}) to ({DestLat},{DestLng})",

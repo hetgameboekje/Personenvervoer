@@ -1,0 +1,202 @@
+@{
+    ViewData["Title"] = "Locaties";
+}
+
+<h1>Locaties</h1>
+
+<div class="mb-3">
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <i class="bi bi-plus-lg"></i> Nieuwe locatie
+    </button>
+</div>
+
+<div id="alertContainer"></div>
+
+<table class="table table-striped table-hover align-middle" id="locationsTable">
+    <thead class="table-dark">
+        <tr>
+            <th>Naam</th>
+            <th>Adres</th>
+            <th>Breedtegraad</th>
+            <th>Lengtegraad</th>
+            <th>Acties</th>
+        </tr>
+    </thead>
+    <tbody id="locationsBody">
+        <tr><td colspan="5" class="text-center">Laden...</td></tr>
+    </tbody>
+</table>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="locationModal" tabindex="-1" aria-labelledby="locationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="locationModalLabel">Locatie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+            </div>
+            <div class="modal-body">
+                <form id="locationForm">
+                    <input type="hidden" id="locationId" />
+                    <div class="mb-3">
+                        <label for="locationName" class="form-label">Naam <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="locationName" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="locationAddress" class="form-label">Adres</label>
+                        <input type="text" class="form-control" id="locationAddress" />
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="locationLatitude" class="form-label">Breedtegraad</label>
+                            <input type="number" step="any" class="form-control" id="locationLatitude" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="locationLongitude" class="form-label">Lengtegraad</label>
+                            <input type="number" step="any" class="form-control" id="locationLongitude" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-primary" onclick="saveLocation()">Opslaan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Verwijderen bevestigen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+            </div>
+            <div class="modal-body">
+                Weet u zeker dat u deze locatie wilt verwijderen?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Verwijderen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const locationModal = new bootstrap.Modal(document.getElementById('locationModal'));
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    async function loadLocations() {
+        try {
+            const res = await fetch('/api/locations');
+            const data = await res.json();
+            const tbody = document.getElementById('locationsBody');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Geen locaties gevonden.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(l => `
+                <tr>
+                    <td>${escHtml(l.name)}</td>
+                    <td>${escHtml(l.address ?? '')}</td>
+                    <td>${l.latitude ?? ''}</td>
+                    <td>${l.longitude ?? ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditModal('${l.id}')">Bewerken</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="openDeleteModal('${l.id}')">Verwijderen</button>
+                    </td>
+                </tr>`).join('');
+        } catch (e) {
+            showAlert('Fout bij laden van locaties.', 'danger');
+        }
+    }
+
+    function openCreateModal() {
+        document.getElementById('locationModalLabel').textContent = 'Nieuwe locatie';
+        document.getElementById('locationForm').reset();
+        document.getElementById('locationId').value = '';
+        locationModal.show();
+    }
+
+    async function openEditModal(id) {
+        try {
+            const res = await fetch(`/api/locations/${id}`);
+            if (!res.ok) throw new Error();
+            const l = await res.json();
+            document.getElementById('locationModalLabel').textContent = 'Locatie bewerken';
+            document.getElementById('locationId').value = l.id;
+            document.getElementById('locationName').value = l.name;
+            document.getElementById('locationAddress').value = l.address ?? '';
+            document.getElementById('locationLatitude').value = l.latitude ?? '';
+            document.getElementById('locationLongitude').value = l.longitude ?? '';
+            locationModal.show();
+        } catch (e) {
+            showAlert('Fout bij ophalen locatie.', 'danger');
+        }
+    }
+
+    async function saveLocation() {
+        const id = document.getElementById('locationId').value;
+        const name = document.getElementById('locationName').value.trim();
+        if (!name) { showAlert('Naam is verplicht.', 'warning'); return; }
+        const body = {
+            name,
+            address: document.getElementById('locationAddress').value || null,
+            latitude: parseDecimal(document.getElementById('locationLatitude').value),
+            longitude: parseDecimal(document.getElementById('locationLongitude').value),
+        };
+        try {
+            const url = id ? `/api/locations/${id}` : '/api/locations';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (!res.ok) throw new Error();
+            locationModal.hide();
+            showAlert(id ? 'Locatie bijgewerkt.' : 'Locatie aangemaakt.', 'success');
+            loadLocations();
+        } catch (e) {
+            showAlert('Fout bij opslaan.', 'danger');
+        }
+    }
+
+    function openDeleteModal(id) {
+        document.getElementById('confirmDeleteBtn').onclick = () => deleteLocation(id);
+        deleteModal.show();
+    }
+
+    async function deleteLocation(id) {
+        try {
+            const res = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+            deleteModal.hide();
+            showAlert('Locatie verwijderd.', 'success');
+            loadLocations();
+        } catch (e) {
+            showAlert('Fout bij verwijderen.', 'danger');
+        }
+    }
+
+    function showAlert(msg, type) {
+        const div = document.createElement('div');
+        div.className = `alert alert-${type} alert-dismissible fade show`;
+        div.innerHTML = `${escHtml(msg)}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        const container = document.getElementById('alertContainer');
+        container.prepend(div);
+        setTimeout(() => div.remove(), 4000);
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function parseDecimal(val) {
+        const n = parseFloat(val);
+        return isNaN(n) ? null : n;
+    }
+
+    loadLocations();
+</script>
+}

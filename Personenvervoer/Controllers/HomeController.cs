@@ -15,6 +15,21 @@ public class HomeController : Controller
         return View();
     }
 
+    public IActionResult Location()
+    {
+        return View();
+    }
+
+    public IActionResult Ride()
+    {
+        return View();
+    }
+
+    public IActionResult Ridepattern()
+    {
+        return View();
+    }
+
     public IActionResult Privacy()
     {
         return View();

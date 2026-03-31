@@ -1,11 +1,30 @@
+using Microsoft.AspNetCore.Mvc;
+using Personenvervoer.Services;
+
 namespace Personenvervoer.Controllers;
 
-public class DatabaseController
+[ApiController]
+[Route("api/[controller]")]
+public class DatabaseController : ControllerBase
 {
-    // function to getmodel
-    
-    // function 
-    // param query
-    // execute query
-    // return data
+    private readonly DatabaseService _databaseService;
+
+    public DatabaseController(DatabaseService databaseService)
+    {
+        _databaseService = databaseService;
+    }
+
+    [HttpGet("health")]
+    public async Task<IActionResult> Health()
+    {
+        try
+        {
+            await using var conn = await _databaseService.OpenConnectionAsync();
+            return Ok(new { status = "ok", database = "connected" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(503, new { status = "error", message = ex.Message });
+        }
+    }
 }

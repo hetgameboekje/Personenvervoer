@@ -2,19 +2,19 @@ namespace Personenvervoer.Models;
 
 public class RideModel
 {
-    // parental to ridepattern
-    // CRUD
-    
-    // withtin ride can be only one ridepattern
-    // location id
-    // ridetype either a_to_b or b_to_a
-    
-    
-    // validate if enough people in ride with ridepattern
-    //left join ridepattern to ride
-    
-    
-    // api ridepattern connection
-    // get credentials from .env
-    // get all members from ridepattern
+    public Guid Id { get; set; }
+    public Guid? RidepatternId { get; set; }
+    public Guid? VehicleId { get; set; }
+    public Guid? EndLocationId { get; set; }
+    public string RideType { get; set; } = "a_to_b";
+    public DateTime? MaxBoardingTime { get; set; }
+    public DateTime? LocationTime { get; set; }
+    public DateTime? RideTime { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    // Navigation (joined)
+    public RidepatternModel? Ridepattern { get; set; }
+    public VehicleModel? Vehicle { get; set; }
+    public LocationModel? EndLocation { get; set; }
 }

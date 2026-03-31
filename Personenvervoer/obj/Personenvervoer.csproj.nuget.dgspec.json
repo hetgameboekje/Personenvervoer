@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/home/timo/Documents/GitHub/Personenvervoer/Personenvervoer/Personenvervoer.csproj": {}
+    "/home/runner/work/Personenvervoer/Personenvervoer/Personenvervoer/Personenvervoer.csproj": {}
   },
   "projects": {
-    "/home/timo/Documents/GitHub/Personenvervoer/Personenvervoer/Personenvervoer.csproj": {
+    "/home/runner/work/Personenvervoer/Personenvervoer/Personenvervoer/Personenvervoer.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/timo/Documents/GitHub/Personenvervoer/Personenvervoer/Personenvervoer.csproj",
+        "projectUniqueName": "/home/runner/work/Personenvervoer/Personenvervoer/Personenvervoer/Personenvervoer.csproj",
         "projectName": "Personenvervoer",
-        "projectPath": "/home/timo/Documents/GitHub/Personenvervoer/Personenvervoer/Personenvervoer.csproj",
-        "packagesPath": "/home/timo/.nuget/packages/",
-        "outputPath": "/home/timo/Documents/GitHub/Personenvervoer/Personenvervoer/obj/",
+        "projectPath": "/home/runner/work/Personenvervoer/Personenvervoer/Personenvervoer/Personenvervoer.csproj",
+        "packagesPath": "/home/runner/.nuget/packages/",
+        "outputPath": "/home/runner/work/Personenvervoer/Personenvervoer/Personenvervoer/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/timo/.nuget/NuGet/NuGet.Config"
+          "/home/runner/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -38,11 +38,17 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.100"
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net10.0": {
           "targetAlias": "net10.0",
+          "dependencies": {
+            "Npgsql": {
+              "target": "Package",
+              "version": "[9.0.4, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -62,7 +68,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/home/timo/.dotnet/sdk/10.0.102/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.201/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.AspNetCore": "(,10.0.32767]",
             "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
